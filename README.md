@@ -22,15 +22,15 @@ graph TD
 1. Push mã nguồn này lên GitHub Repository của bạn:
    ```bash
    git add .
-   git commit -m "Fix kernel build script and workflow inputs"
+   git commit -m "Update default kernel version to Linux 7.2.2"
    git push
    ```
 
-2. Truy cập vào GitHub Repository -> Vào tab **Actions** -> Select **Build Debian CachyOS Kernel**.
+2. Truy cập vào GitHub Repository -> Vào tab **Actions** -> Chọn **Build Debian CachyOS Kernel**.
 
 3. Nhấn **Run workflow** và điền các thông số:
-   - **Linux Kernel Version**: `6.13.5` (Phiên bản kernel mong muốn).
-   - **CachyOS Patch Set Version**: `6.13` (Phiên bản bộ patch tương ứng).
+   - **Linux Kernel Version**: `7.2.2` (Phiên bản Linux Kernel mới nhất hiện tại).
+   - **CachyOS Patch Set Version**: `7.2` (Phiên bản bộ patch CachyOS tương ứng).
    - **CPU Scheduler**: `bore` (Chọn CPU Scheduler BORE hoặc `eevdf`).
    - **Kernel Suffix**: `-cachyos`.
 
@@ -59,5 +59,5 @@ sudo reboot
 Kiểm tra kernel sau khi reboot:
 ```bash
 uname -r
-# Kết quả sẽ có dạng: 6.13.5-cachyos
+# Kết quả sẽ có dạng: 7.2.2-cachyos
 ```

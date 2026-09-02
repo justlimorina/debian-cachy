@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -e
 
-KERNEL_VER="${1:-6.13.5}"
-PATCH_VER="${2:-6.13}"
+KERNEL_VER="${1:-7.2.2}"
+PATCH_VER="${2:-7.2}"
 SCHEDULER="${3:-bore}"
 LOCALVER="${4:--cachyos}"
 

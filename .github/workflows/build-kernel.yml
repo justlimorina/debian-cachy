@@ -4,13 +4,13 @@ on:
   workflow_dispatch:
     inputs:
       kernel_version:
-        description: 'Linux Kernel Version (e.g., 6.13.5, 6.12.16)'
+        description: 'Linux Kernel Version (e.g., 7.2.2, 7.1, 6.12.16)'
         required: true
-        default: '6.13.5'
+        default: '7.2.2'
       patch_version:
-        description: 'CachyOS Patch Set Version (e.g., 6.13, 6.12)'
+        description: 'CachyOS Patch Set Version (e.g., 7.2, 7.1, 6.12)'
         required: true
-        default: '6.13'
+        default: '7.2'
       scheduler:
         description: 'CPU Scheduler (bore, eevdf)'
         required: true
@@ -67,8 +67,8 @@ jobs:
       - name: Run Build Script
         run: |
           chmod +x scripts/build.sh
-          KERNEL_VER="${{ github.event.inputs.kernel_version || '6.13.5' }}"
-          PATCH_VER="${{ github.event.inputs.patch_version || '6.13' }}"
+          KERNEL_VER="${{ github.event.inputs.kernel_version || '7.2.2' }}"
+          PATCH_VER="${{ github.event.inputs.patch_version || '7.2' }}"
           SCHEDULER="${{ github.event.inputs.scheduler || 'bore' }}"
           SUFFIX="${{ github.event.inputs.localversion || '-cachyos' }}"
           ./scripts/build.sh "$KERNEL_VER" "$PATCH_VER" "$SCHEDULER" "$SUFFIX"
