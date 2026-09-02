@@ -3,12 +3,20 @@ name: Build Debian CachyOS Kernel
 on:
   workflow_dispatch:
     inputs:
-      cachy_branch:
-        description: 'CachyOS Kernel Branch (e.g. 6.13/master, 6.12/master)'
+      kernel_version:
+        description: 'Linux Kernel Version (e.g., 6.13.5, 6.12.16)'
         required: true
-        default: '6.13/master'
+        default: '6.13.5'
+      patch_version:
+        description: 'CachyOS Patch Set Version (e.g., 6.13, 6.12)'
+        required: true
+        default: '6.13'
+      scheduler:
+        description: 'CPU Scheduler (bore, eevdf)'
+        required: true
+        default: 'bore'
       localversion:
-        description: 'Kernel Version Suffix'
+        description: 'Kernel Suffix'
         required: true
         default: '-cachyos'
   schedule:
@@ -53,14 +61,17 @@ jobs:
             cpio \
             zstd \
             zlib1g-dev \
-            pahole
+            pahole \
+            patch
 
       - name: Run Build Script
         run: |
           chmod +x scripts/build.sh
-          BRANCH="${{ github.event.inputs.cachy_branch || '6.13/master' }}"
+          KERNEL_VER="${{ github.event.inputs.kernel_version || '6.13.5' }}"
+          PATCH_VER="${{ github.event.inputs.patch_version || '6.13' }}"
+          SCHEDULER="${{ github.event.inputs.scheduler || 'bore' }}"
           SUFFIX="${{ github.event.inputs.localversion || '-cachyos' }}"
-          ./scripts/build.sh "$BRANCH" "$SUFFIX"
+          ./scripts/build.sh "$KERNEL_VER" "$PATCH_VER" "$SCHEDULER" "$SUFFIX"
 
       - name: Prepare Artifacts
         run: |
@@ -84,11 +95,11 @@ jobs:
           files: release-pkg/*.deb
           body: |
             ## 🚀 CachyOS Kernel for Debian (.deb Packages)
-            Automated build from CachyOS kernel source.
+            Automated build from official Linux Kernel + CachyOS Patchset.
 
             ### 📦 Included Packages:
             - `linux-image-*.deb` - Main Linux Kernel Image
-            - `linux-headers-*.deb` - Kernel Headers (Required for DKMS/NVIDIA/VirtualBox drivers)
+            - `linux-headers-*.deb` - Kernel Headers (Required for DKMS/NVIDIA drivers)
             - `linux-libc-dev_*.deb` - C library headers
 
             ### 📥 Quick Installation on Debian:

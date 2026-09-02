@@ -1,29 +1,69 @@
 #!/usr/bin/env bash
 set -e
 
-BRANCH="${1:-6.13/master}"
-LOCALVER="${2:--cachyos}"
+KERNEL_VER="${1:-6.13.5}"
+PATCH_VER="${2:-6.13}"
+SCHEDULER="${3:-bore}"
+LOCALVER="${4:--cachyos}"
 
 echo "=========================================="
 echo " Building CachyOS Kernel for Debian"
-echo " Branch: $BRANCH"
-echo " Suffix: $LOCALVER"
+echo " Kernel Version: $KERNEL_VER"
+echo " Patch Version:  $PATCH_VER"
+echo " Scheduler:      $SCHEDULER"
+echo " Suffix:         $LOCALVER"
 echo "=========================================="
 
-# 1. Clone source code
-echo "[1/4] Cloning CachyOS Linux source repository..."
-git clone --depth 1 -b "$BRANCH" https://github.com/CachyOS/linux-cachyos.git kernel-src
+# 1. Download official Linux Kernel source
+MAJOR_VER=$(echo "$KERNEL_VER" | cut -d. -f1)
+TARBALL="linux-${KERNEL_VER}.tar.xz"
+TARBALL_URL="https://cdn.kernel.org/pub/linux/kernel/v${MAJOR_VER}.x/${TARBALL}"
+
+echo "[1/5] Downloading kernel source from $TARBALL_URL..."
+curl -sSL "$TARBALL_URL" -o "$TARBALL"
+mkdir -p kernel-src
+tar -xJf "$TARBALL" -C kernel-src --strip-components=1
+rm -f "$TARBALL"
+
 cd kernel-src
 
-# 2. Configure kernel
-echo "[2/4] Setting up kernel configuration..."
-if [ -f "../config/custom.config" ]; then
+# 2. Download CachyOS Patches
+echo "[2/5] Fetching CachyOS patches..."
+git clone --depth 1 https://github.com/CachyOS/kernel-patches.git ../patches
+
+PATCH_DIR="../patches/${PATCH_VER}"
+if [ -d "$PATCH_DIR" ]; then
+    echo "Applying main CachyOS patches from $PATCH_DIR..."
+    for p in "$PATCH_DIR"/*.patch; do
+        if [ -f "$p" ]; then
+            echo " -> Applying $(basename "$p")"
+            patch -p1 -F3 -s < "$p" || echo "   (Warning: Some hunks skipped in $(basename "$p"))"
+        fi
+    done
+
+    # Apply Scheduler patch
+    if [ "$SCHEDULER" = "bore" ]; then
+        if [ -f "$PATCH_DIR/sched/0001-bore-cachy.patch" ]; then
+            echo " -> Applying BORE scheduler patch (0001-bore-cachy.patch)..."
+            patch -p1 -F3 -s < "$PATCH_DIR/sched/0001-bore-cachy.patch" || true
+        elif [ -f "$PATCH_DIR/sched/0001-bore.patch" ]; then
+            echo " -> Applying BORE scheduler patch (0001-bore.patch)..."
+            patch -p1 -F3 -s < "$PATCH_DIR/sched/0001-bore.patch" || true
+        fi
+    fi
+else
+    echo "Warning: Patch directory $PATCH_DIR not found. Proceeding with vanilla kernel."
+fi
+
+# 3. Configure kernel
+echo "[3/5] Setting up kernel configuration..."
+if [ -f "../../config/custom.config" ]; then
     echo "Using custom config from config/custom.config..."
-    cp ../config/custom.config .config
+    cp ../../config/custom.config .config
     make olddefconfig
 else
-    echo "Generating defconfig with GitHub Actions optimizations..."
-    make defconfig
+    echo "Downloading official CachyOS config..."
+    curl -sSL "https://raw.githubusercontent.com/CachyOS/linux-cachyos/master/linux-cachyos/config" -o .config || make defconfig
 
     # Disable heavy debug info to save build time & disk space on CI
     ./scripts/config --disable CONFIG_DEBUG_INFO
@@ -36,16 +76,17 @@ else
     make olddefconfig
 fi
 
-# 3. Build .deb packages
-echo "[3/4] Compiling kernel and packaging .deb files..."
+# 4. Build .deb packages
+echo "[4/5] Compiling kernel and packaging .deb files..."
 make -j$(nproc) bindeb-pkg LOCALVERSION="$LOCALVER"
 
-# 4. Move generated deb packages to workspace root
-echo "[4/4] Moving generated .deb files..."
+# 5. Move generated deb packages to workspace root
+echo "[5/5] Moving generated .deb files..."
 cd ..
-mv *.deb ./ 2>/dev/null || true
+mv *.deb ../ 2>/dev/null || true
 
 echo "=========================================="
 echo " Build Completed Successfully!"
 echo "=========================================="
+cd ..
 ls -lh *.deb
