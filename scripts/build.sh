@@ -65,7 +65,11 @@ else
     echo "Downloading official CachyOS config..."
     curl -sSL "https://raw.githubusercontent.com/CachyOS/linux-cachyos/master/linux-cachyos/config" -o .config || make defconfig
 
-    # Disable heavy debug info to save build time & disk space on CI
+    # Disable heavy & incompatible features for GitHub Actions runner:
+    # 1. Disable Rust support (requires rustc kernel toolchain not present on standard runner)
+    ./scripts/config --disable CONFIG_RUST
+
+    # 2. Disable heavy debug symbols & BTF to prevent disk full & save compile time
     ./scripts/config --disable CONFIG_DEBUG_INFO
     ./scripts/config --disable CONFIG_DEBUG_INFO_DWARF_TOOLCHAIN_DEFAULT
     ./scripts/config --disable CONFIG_DEBUG_INFO_DWARF4
@@ -73,12 +77,15 @@ else
     ./scripts/config --enable CONFIG_DEBUG_INFO_NONE
     ./scripts/config --disable CONFIG_DEBUG_INFO_BTF
 
+    # 3. Clear system trusted keys to prevent build errors
+    ./scripts/config --set-str CONFIG_SYSTEM_TRUSTED_KEYS ""
+    ./scripts/config --set-str CONFIG_SYSTEM_REVOCATION_KEYS ""
+
     make olddefconfig
 fi
 
 # 4. Build .deb packages
 echo "[4/5] Compiling kernel and packaging .deb files..."
-# Pass DPKG_FLAGS="-d" to bypass strict debian dependency checks during packaging
 make -j$(nproc) bindeb-pkg LOCALVERSION="$LOCALVER" DPKG_FLAGS="-d"
 
 # 5. Move generated deb packages to workspace root
