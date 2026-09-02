@@ -78,7 +78,8 @@ fi
 
 # 4. Build .deb packages
 echo "[4/5] Compiling kernel and packaging .deb files..."
-make -j$(nproc) bindeb-pkg LOCALVERSION="$LOCALVER"
+# Pass DPKG_FLAGS="-d" to bypass strict debian dependency checks during packaging
+make -j$(nproc) bindeb-pkg LOCALVERSION="$LOCALVER" DPKG_FLAGS="-d"
 
 # 5. Move generated deb packages to workspace root
 echo "[5/5] Moving generated .deb files..."

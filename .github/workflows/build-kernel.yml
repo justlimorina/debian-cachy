@@ -53,6 +53,11 @@ jobs:
             flex \
             libssl-dev \
             libelf-dev \
+            libdw-dev \
+            libunwind-dev \
+            libslang2-dev \
+            liblzma-dev \
+            libiberty-dev \
             bc \
             rsync \
             debhelper \
