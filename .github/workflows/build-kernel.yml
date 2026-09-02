@@ -1,0 +1,102 @@
+name: Build Debian CachyOS Kernel
+
+on:
+  workflow_dispatch:
+    inputs:
+      cachy_branch:
+        description: 'CachyOS Kernel Branch (e.g. 6.13/master, 6.12/master)'
+        required: true
+        default: '6.13/master'
+      localversion:
+        description: 'Kernel Version Suffix'
+        required: true
+        default: '-cachyos'
+  schedule:
+    # Run every Sunday at 00:00 UTC
+    - cron: '0 0 * * 0'
+
+permissions:
+  contents: write
+
+jobs:
+  build-kernel:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Free Disk Space on Runner
+        run: |
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /opt/ghc
+          sudo rm -rf /usr/local/share/boost
+          sudo rm -rf "$AGENT_TOOLSDIRECTORY"
+          sudo apt-get clean
+          df -h
+
+      - name: Install Build Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            libncurses-dev \
+            bison \
+            flex \
+            libssl-dev \
+            libelf-dev \
+            bc \
+            rsync \
+            debhelper \
+            kmod \
+            git \
+            cpio \
+            zstd \
+            zlib1g-dev \
+            pahole
+
+      - name: Run Build Script
+        run: |
+          chmod +x scripts/build.sh
+          BRANCH="${{ github.event.inputs.cachy_branch || '6.13/master' }}"
+          SUFFIX="${{ github.event.inputs.localversion || '-cachyos' }}"
+          ./scripts/build.sh "$BRANCH" "$SUFFIX"
+
+      - name: Prepare Artifacts
+        run: |
+          mkdir -p release-pkg
+          mv *.deb release-pkg/ 2>/dev/null || true
+          ls -lh release-pkg/
+
+      - name: Create Release Tag
+        id: tag_name
+        run: |
+          TAG="v$(date +'%Y.%m.%d-%H%M')-cachyos"
+          echo "TAG_NAME=$TAG" >> $GITHUB_ENV
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.TAG_NAME }}
+          name: CachyOS Kernel Debian Build - ${{ env.TAG_NAME }}
+          draft: false
+          prerelease: false
+          files: release-pkg/*.deb
+          body: |
+            ## 🚀 CachyOS Kernel for Debian (.deb Packages)
+            Automated build from CachyOS kernel source.
+
+            ### 📦 Included Packages:
+            - `linux-image-*.deb` - Main Linux Kernel Image
+            - `linux-headers-*.deb` - Kernel Headers (Required for DKMS/NVIDIA/VirtualBox drivers)
+            - `linux-libc-dev_*.deb` - C library headers
+
+            ### 📥 Quick Installation on Debian:
+            ```bash
+            # Download all .deb files from this release, then run:
+            sudo dpkg -i linux-image-*.deb linux-headers-*.deb
+            sudo update-grub
+            sudo reboot
+            ```
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
