@@ -62,22 +62,54 @@ if [ -f "../../config/custom.config" ]; then
     cp ../../config/custom.config .config
     make olddefconfig
 else
-    echo "Downloading official CachyOS config..."
-    curl -sSL "https://raw.githubusercontent.com/CachyOS/linux-cachyos/master/linux-cachyos/config" -o .config || make defconfig
+    # Start from the kernel's own defconfig (guaranteed compatible with current GCC)
+    # then layer CachyOS-specific performance features on top.
+    echo "Generating base defconfig for this toolchain..."
+    make defconfig
 
-    # Disable heavy & incompatible features for GitHub Actions runner:
-    # 1. Disable Rust support (requires rustc kernel toolchain not present on standard runner)
+    echo "Applying CachyOS performance tweaks on top of defconfig..."
+
+    # --- CPU Scheduler: BORE ---
+    ./scripts/config --enable CONFIG_SCHED_BORE 2>/dev/null || true
+
+    # --- Network: BBRv3 ---
+    ./scripts/config --enable CONFIG_TCP_CONG_BBR
+    ./scripts/config --set-str CONFIG_DEFAULT_TCP_CONG "bbr"
+
+    # --- CPU Performance ---
+    ./scripts/config --enable CONFIG_X86_AMD_PSTATE
+    ./scripts/config --enable CONFIG_X86_AMD_PSTATE_DEFAULT_MODE 2>/dev/null || true
+    ./scripts/config --enable CONFIG_CPU_FREQ_DEFAULT_GOV_SCHEDUTIL
+    ./scripts/config --enable CONFIG_HZ_1000
+    ./scripts/config --set-val CONFIG_HZ 1000
+    ./scripts/config --enable CONFIG_PREEMPT
+    ./scripts/config --enable CONFIG_PREEMPT_DYNAMIC 2>/dev/null || true
+    ./scripts/config --enable CONFIG_NO_HZ_FULL
+
+    # --- Memory Management ---
+    ./scripts/config --enable CONFIG_LRU_GEN
+    ./scripts/config --enable CONFIG_LRU_GEN_ENABLED
+    ./scripts/config --enable CONFIG_ZSWAP
+    ./scripts/config --enable CONFIG_ZSWAP_DEFAULT_ON
+    ./scripts/config --enable CONFIG_ZRAM
+    ./scripts/config --enable CONFIG_ZSMALLOC
+
+    # --- I/O Scheduler ---
+    ./scripts/config --enable CONFIG_MQ_IOSCHED_KYBER
+    ./scripts/config --enable CONFIG_BLK_CGROUP
+
+    # --- Futex / Wine / Gaming ---
+    ./scripts/config --enable CONFIG_FUTEX
+    ./scripts/config --enable CONFIG_FUTEX_PI
+
+    # --- Disable features incompatible with GitHub Actions runner ---
     ./scripts/config --disable CONFIG_RUST
-
-    # 2. Disable heavy debug symbols & BTF to prevent disk full & save compile time
     ./scripts/config --disable CONFIG_DEBUG_INFO
     ./scripts/config --disable CONFIG_DEBUG_INFO_DWARF_TOOLCHAIN_DEFAULT
     ./scripts/config --disable CONFIG_DEBUG_INFO_DWARF4
     ./scripts/config --disable CONFIG_DEBUG_INFO_DWARF5
     ./scripts/config --enable CONFIG_DEBUG_INFO_NONE
     ./scripts/config --disable CONFIG_DEBUG_INFO_BTF
-
-    # 3. Clear system trusted keys to prevent build errors
     ./scripts/config --set-str CONFIG_SYSTEM_TRUSTED_KEYS ""
     ./scripts/config --set-str CONFIG_SYSTEM_REVOCATION_KEYS ""
 
