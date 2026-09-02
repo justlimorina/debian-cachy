@@ -13,14 +13,11 @@ echo " Scheduler:      $SCHEDULER"
 echo " Suffix:         $LOCALVER"
 echo "=========================================="
 
-# 1. Download CachyOS pre-patched kernel source
+# 1. Clone CachyOS pre-patched kernel source
 # CachyOS/linux repo contains the FULL kernel source with ALL patches already applied.
-# This is the correct source — it avoids partial patch failures entirely.
-echo "[1/4] Downloading CachyOS pre-patched kernel source (branch: $CACHY_BRANCH)..."
-curl -sSL "https://github.com/CachyOS/linux/archive/refs/heads/${CACHY_BRANCH}.tar.gz" -o cachy-linux.tar.gz
-mkdir -p kernel-src
-tar -xzf cachy-linux.tar.gz -C kernel-src --strip-components=1
-rm -f cachy-linux.tar.gz
+# Using shallow clone (--depth 1) to grab only the latest commit — fast and reliable.
+echo "[1/4] Cloning CachyOS pre-patched kernel source (branch: $CACHY_BRANCH)..."
+git clone --depth 1 -b "$CACHY_BRANCH" https://github.com/CachyOS/linux.git kernel-src
 
 cd kernel-src
 
